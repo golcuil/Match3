@@ -28,6 +28,8 @@ public abstract class GridSystem<T> : Singleton<GridSystem<T>>
         this.dimensions = dimensions;
 
         data = new T[dimensions.x, dimensions.y];
+
+        isReady = true;
     }
 
     // Clear the entire grid
