@@ -153,7 +153,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   prefab: {fileID: 5085131240095718714, guid: 4a59e7c279c314acb93cbdabad0d9bcc, type: 3}
-  howManyTypes: 7
+  howManyTypes: 3
   sprites:
   - {fileID: -1786268456, guid: f6f58b20141744ba3a6a967930b29d61, type: 3}
   - {fileID: 1534927695, guid: f6f58b20141744ba3a6a967930b29d61, type: 3}
@@ -170,6 +170,9 @@ MonoBehaviour:
   - {r: 1, g: 0.5339497, b: 0, a: 1}
   - {r: 0, g: 0, b: 0, a: 1}
   - {r: 0.93859005, g: 1, b: 0, a: 1}
+  match4PowerUp: {fileID: -892889206, guid: f6f58b20141744ba3a6a967930b29d61, type: 3}
+  match5PowerUp: {fileID: -1068873223, guid: f6f58b20141744ba3a6a967930b29d61, type: 3}
+  crossPowerup: {fileID: 669601665, guid: f6f58b20141744ba3a6a967930b29d61, type: 3}
 --- !u!4 &90362383
 Transform:
   m_ObjectHideFlags: 0
@@ -885,6 +888,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 298751c1ec803487a962a63652aef918, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  CheatMode: 0
   verticalStretch: {x: 1, y: 2}
   horizontalStretch: {x: 2, y: 1}
   halfUp: {x: 0, y: 0.5, z: 0}
