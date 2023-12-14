@@ -39,6 +39,13 @@ public class Cursor : Singleton<Cursor>
         pool = (MatchablePool)MatchablePool.Instance;
     }
 
+    //When the player hits retry, make sure nothing is selected and the cursor is invisible
+    public void Reset()
+    {
+        SelectFirst(null);
+        spriteRenderer.enabled = false;
+    }
+
     private void Update()
     {
         if (!CheatMode || selectedMatchables[0] == null)

@@ -19,6 +19,7 @@ public class Movable : MonoBehaviour
 
     private float howfar;
     [SerializeField] private float speed = 1;
+    public float Speed { get => speed; }
 
     protected bool idle = true;
     public bool Idle { get => idle; }

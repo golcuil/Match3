@@ -2,36 +2,96 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
+using UnityEngine.UI;
 
-[RequireComponent(typeof(TextMeshProUGUI))]
 public class ScoreManager : Singleton<ScoreManager>
 {
     private MatchablePool pool;
     private MatchableGrid grid;
+    private AudioMixer audioMixer;
 
     [SerializeField]private Transform collectionPoint;
 
-    private TextMeshProUGUI scoreText;
+    [SerializeField]
+    private TextMeshProUGUI scoreText,
+                            comboText;
 
-    private int score = 0;
+    [SerializeField] Image comboSlider;
+
+    private int score,
+                comboMultiplier;
     public int Score { get => score; }
 
-    protected override void Init()
-    {
-        scoreText = GetComponent<TextMeshProUGUI>();
-    }
+    private float timeSinceLastScore;
+
+    [SerializeField] private float maxComboTime,
+                                   currentComboTime;
+
+    private bool timerIsActive;
 
     private void Start()
     {
         grid = (MatchableGrid)MatchableGrid.Instance;
         pool = (MatchablePool)MatchablePool.Instance;
-        scoreText.text = "Score: " + score;
+        audioMixer = (AudioMixer)AudioMixer.Instance;
+        scoreText.text = score.ToString();
+
+        comboText.enabled = false;
+        comboSlider.gameObject.SetActive(false);
+    }
+
+    //When the player hits retry, reset the score and combo
+    public void Reset()
+    {
+        score = 0;
+        scoreText.text = score.ToString();
+        timeSinceLastScore = maxComboTime;
     }
 
     public void AddScore(int amount)
+    { 
+        score += amount * IncreaseCombo();
+        scoreText.text = score.ToString();
+
+        timeSinceLastScore = 0;
+
+        if(!timerIsActive)
+        {
+            StartCoroutine(ComboTimer());
+        }
+
+        //Play score sound
+        audioMixer.PlaySound(SoundEffects.score);
+    }
+
+    //Combo timer coroutine, counts up to max combo time before resetting the combo multiplier.
+    private IEnumerator ComboTimer()
     {
-        score += amount;
-        scoreText.text = "Score: " + score;
+        timerIsActive = true;
+        comboText.enabled = true;
+        comboSlider.gameObject.SetActive(true);
+
+        do
+        {
+            timeSinceLastScore += Time.deltaTime;
+            comboSlider.fillAmount = 1 - timeSinceLastScore / currentComboTime;
+            yield return null;
+
+        } while (timeSinceLastScore < currentComboTime);
+
+        comboMultiplier = 0;
+        comboText.enabled = false;
+        comboSlider.gameObject.SetActive(false);
+        timerIsActive = false;
+    }
+
+    private int IncreaseCombo()
+    {
+        comboText.text = "Combo x" + comboMultiplier++;
+
+        currentComboTime = maxComboTime - Mathf.Log(comboMultiplier) / 2;
+
+        return comboMultiplier;
     }
 
     public IEnumerator ResolveMatch(Match toResolve, MatchType powerupUsed = MatchType.invalid)
@@ -49,6 +109,14 @@ public class ScoreManager : Singleton<ScoreManager>
             toResolve.RemoveMatchable(powerupFormed);
             target = powerupFormed.transform;
             powerupFormed.SortingOrder = 3;
+
+            //Play upgrade sound
+            audioMixer.PlaySound(SoundEffects.upgrade);
+        }
+        else
+        {
+            //Play resolve sound
+            audioMixer.PlaySound(SoundEffects.resolve);
         }
 
 

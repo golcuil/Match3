@@ -8,13 +8,30 @@ public class MatchableGrid : GridSystem<Matchable>
 {
     private MatchablePool pool;
     private ScoreManager score;
+    private HintIndicator hint;
+    private AudioMixer audioMixer;
 
     [SerializeField]private Vector3 offscreenOffset;
+
+    private List<Matchable> possibleMoves;
 
     private void Start()
     {
         pool = (MatchablePool)MatchablePool.Instance;
         score = (ScoreManager)ScoreManager.Instance;
+        hint = (HintIndicator)HintIndicator.Instance;
+        audioMixer = (AudioMixer)AudioMixer.Instance;
+    }
+
+    //When the player hits retry, wipe the board an repopulate
+    public IEnumerator Reset()
+    {
+        for (int y = 0; y < Dimensions.y; y++)
+            for (int x = 0; x < Dimensions.x; x++)
+                if (!IsEmpty(x, y))
+                    pool.ReturnObjectToPool(RemoveItemAt(x, y));
+
+        yield return StartCoroutine(PopulateGrid(false, true));
     }
 
     public IEnumerator PopulateGrid(bool allowMatches = false, bool initialPopulation = false)
@@ -68,6 +85,9 @@ public class MatchableGrid : GridSystem<Matchable>
         {
             //Calculate the future on screen position of the matchable
             onscreenPosition = transform.position + new Vector3(newMatchables[i].position.x, newMatchables[i].position.y);
+
+            //Play a landing sound after a delay when the matchable lands in position
+            audioMixer.PlayDelayedSound(SoundEffects.land, 1f / newMatchables[i].Speed);
 
             //Move the matchable to its on screen position
             if (i == newMatchables.Count-1)
@@ -129,6 +149,9 @@ public class MatchableGrid : GridSystem<Matchable>
         Matchable[] copies = new Matchable[2];
         copies[0] = toBeSwapped[0];
         copies[1] = toBeSwapped[1];
+
+        //hide the hint indicator
+        hint.CancelHint();
 
         //Yield until matchables animate swapping
         yield return StartCoroutine(Swap(copies));
@@ -192,7 +215,25 @@ public class MatchableGrid : GridSystem<Matchable>
         if (ScanForMatches())
             //Collapse, repopulate and scan again
             StartCoroutine(FillAndScanGrid());
+        else
+        {
+            CheckPossibleMoves();
+        }
 
+    }
+
+    public void CheckPossibleMoves()
+    {
+        if(ScanForMoves() == 0)
+        {
+            //no moves!
+            GameManager.Instance.NoMoreMoves();
+        }
+        else
+        {
+            //offer a hint
+            hint.StartAutoHint(possibleMoves[Random.Range(0,possibleMoves.Count)].transform);
+        }
     }
 
     private Match GetMatch(Matchable toMatch)
@@ -304,6 +345,9 @@ public class MatchableGrid : GridSystem<Matchable>
         worldPosition[0] = toBeSwapped[0].transform.position;
         worldPosition[1] = toBeSwapped[1].transform.position;
 
+        //Play swap sound
+        audioMixer.PlaySound(SoundEffects.swap);
+
         //Move them to their new positions on screen
                      StartCoroutine(toBeSwapped[0].MoveToPosition(worldPosition[1]));
         yield return StartCoroutine(toBeSwapped[1].MoveToPosition(worldPosition[0]));
@@ -352,6 +396,8 @@ public class MatchableGrid : GridSystem<Matchable>
 
         //Start animation to move it screen
         StartCoroutine(toMove.MoveToPosition(transform.position + new Vector3(x, y)));
+
+        audioMixer.PlayDelayedSound(SoundEffects.land, 1f / toMove.Speed);
     }
 
     //Scan the grid for any matches and resolve them
@@ -400,6 +446,9 @@ public class MatchableGrid : GridSystem<Matchable>
 
         StartCoroutine(score.ResolveMatch(allAdjacent, MatchType.match4));
 
+        //Play powerup sound
+        audioMixer.PlaySound(SoundEffects.powerup);
+
     }
 
     //Make a match of everything in the row and column that contains the powerup and resolve it
@@ -416,6 +465,10 @@ public class MatchableGrid : GridSystem<Matchable>
                  rowAndColumn.AddMatchable(GetItemAt(x, powerup.position.y));
 
         StartCoroutine(score.ResolveMatch(rowAndColumn, MatchType.cross));
+
+        //Play powerup sound
+        audioMixer.PlaySound(SoundEffects.powerup);
+
     }
 
     //Match everything on the grid wit a specific type and resolve it
@@ -430,6 +483,9 @@ public class MatchableGrid : GridSystem<Matchable>
 
         StartCoroutine(score.ResolveMatch(everythingByType, MatchType.match5));
         StartCoroutine(FillAndScanGrid());
+
+        //Play powerup sound
+        audioMixer.PlaySound(SoundEffects.powerup);
     }
     //Match everything on the grid and resolve it
     public void MatchEverything()
@@ -444,4 +500,92 @@ public class MatchableGrid : GridSystem<Matchable>
         StartCoroutine(score.ResolveMatch(everything, MatchType.match5));
         StartCoroutine(FillAndScanGrid());
     }
+
+    //Scan for all possible moves
+    private int ScanForMoves()
+    {
+        possibleMoves = new List<Matchable>();
+
+        //Scan through the entire grid
+        for (int y = 0; y < Dimensions.y; y++)
+            for (int x = 0; x < Dimensions.x; x++)
+                if (CheckBounds(x, y) && !IsEmpty(x, y) && CanMove(GetItemAt(x, y)))
+                    possibleMoves.Add(GetItemAt(x, y));
+
+        return possibleMoves.Count;
+    }
+
+    //Check if this matchable can move tp form a valid match
+    private bool CanMove(Matchable toCheck)
+    {
+        if (CanMove(toCheck,Vector2Int.up) ||
+            CanMove(toCheck, Vector2Int.right) ||
+            CanMove(toCheck, Vector2Int.down) ||
+            CanMove(toCheck, Vector2Int.left))
+            return true;
+
+        if (toCheck.IsGem)
+            return true;
+
+        return false;
+    }
+
+    //Can this matchable move in 1 direction?
+    private bool CanMove(Matchable toCheck, Vector2Int direction)
+    {
+        //Look 2 and 3 positions away straight ahead
+        Vector2Int position1 = toCheck.position + direction * 2,
+                   position2 = toCheck.position + direction * 3;
+
+        if (IsAPotentialMatch(toCheck, position1, position2))
+            return true;
+
+        //What is the clockwise direction?
+        /*     
+         *  Clockwise(cw) x = y, y = -x
+         *  Counter Clockwise(ccw) x = -y, y = x
+         */
+        Vector2Int cw = new Vector2Int(direction.y, -direction.x),
+                    ccw = new Vector2Int(-direction.y, direction.x);
+
+        //Look diagonally clockwise
+        position1 = toCheck.position + direction + cw;
+        position2 = toCheck.position + direction + cw * 2;
+
+        if (IsAPotentialMatch(toCheck, position1, position2))
+            return true;
+
+        //Look diagonally both ways
+        position2 = toCheck.position + direction + ccw;
+
+        if (IsAPotentialMatch(toCheck, position1, position2))
+            return true;
+
+        //Look diagonally counterclockwise
+        position1 = toCheck.position + direction + ccw * 2;
+
+        if (IsAPotentialMatch(toCheck, position1, position2))
+            return true;
+
+
+        return false;
+    }
+
+    private bool IsAPotentialMatch(Matchable toCompare, Vector2Int position1, Vector2Int position2)
+    {
+        if (CheckBounds(position1) && CheckBounds(position2) &&
+            !IsEmpty(position1) && !IsEmpty(position2) &&
+            GetItemAt(position1).Idle && GetItemAt(position2).Idle &&
+            GetItemAt(position1).Type == toCompare.Type && GetItemAt(position2).Type == toCompare.Type)
+            return true;
+
+        return false;
+    }
+
+    //Show a hint to the player
+    public void ShowHint()
+    {
+        hint.IndicateHint(possibleMoves[Random.Range(0, possibleMoves.Count)].transform);
+    }
+
 }
