@@ -5,8 +5,6 @@ using UnityEngine;
 [RequireComponent(typeof(SpriteRenderer))]
 public class Cursor : Singleton<Cursor>
 {
-    public bool CheatMode;
-
     private MatchablePool pool;
     private MatchableGrid grid;
 
@@ -44,30 +42,6 @@ public class Cursor : Singleton<Cursor>
     {
         SelectFirst(null);
         spriteRenderer.enabled = false;
-    }
-
-    private void Update()
-    {
-        if (!CheatMode || selectedMatchables[0] == null)
-            return;
-
-        if (Input.GetKeyDown(KeyCode.Alpha1))
-            pool.ChangeType(selectedMatchables[0], 0);
-        if (Input.GetKeyDown(KeyCode.Alpha2))
-            pool.ChangeType(selectedMatchables[0], 1);
-        if (Input.GetKeyDown(KeyCode.Alpha3))
-            pool.ChangeType(selectedMatchables[0], 2);
-        if (Input.GetKeyDown(KeyCode.Alpha4))
-            pool.ChangeType(selectedMatchables[0], 3);
-        if (Input.GetKeyDown(KeyCode.Alpha5))
-            pool.ChangeType(selectedMatchables[0], 4);
-        if (Input.GetKeyDown(KeyCode.Alpha6))
-            pool.ChangeType(selectedMatchables[0], 5);
-        if (Input.GetKeyDown(KeyCode.Alpha7))
-            pool.ChangeType(selectedMatchables[0], 6);
-        if (Input.GetKeyDown(KeyCode.Alpha8))
-            pool.ChangeType(selectedMatchables[0], 7);
-
     }
 
     public void SelectFirst(Matchable toSelect)
