@@ -24,6 +24,10 @@ public class GameManager : Singleton<GameManager>
 
     [SerializeField] Movable resultsPage;
 
+    [SerializeField] private bool levelIsTimed;
+    [SerializeField] private LevelTimer timer;
+    [SerializeField] private float timeLimit;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -43,6 +47,10 @@ public class GameManager : Singleton<GameManager>
 
         //Unhide Loading screen
         loadingScreen.Hide(false);
+
+        //If level is timed, set the timer
+        if (levelIsTimed)
+            timer.SetTimer(timeLimit);
 
         //Pool the matchables
         pool.PoolObjects(dimensions.x * dimensions.y * 2);
@@ -64,15 +72,22 @@ public class GameManager : Singleton<GameManager>
 
         //Enable user input
         cursor.enabled = true;
+
+        //If level is timed, start the timer
+        if (levelIsTimed)
+            StartCoroutine(timer.Countdown());
     }
 
     public void NoMoreMoves()
     {
-        //Game Over?
-        GameOver();
+        //If level is timed, reward the player for running out of moves
+        if (levelIsTimed)
+            grid.MatchEverything();
 
+        //In survival mode, punish the player for running out of moves
+        else
+            GameOver();
 
-        //grid.MatchEverything();
     }
 
     public void GameOver()
@@ -110,6 +125,9 @@ public class GameManager : Singleton<GameManager>
         darkener.Hide(true);
 
         //Reset the cursor, game grid and score
+        if (levelIsTimed)
+            timer.SetTimer(timeLimit);
+
         cursor.Reset();
         scoreManager.Reset();
 
@@ -117,6 +135,9 @@ public class GameManager : Singleton<GameManager>
 
         //let the player start again
         cursor.enabled = true;
+
+        if (levelIsTimed)
+            StartCoroutine(timer.Countdown());
     }
 
     public void RetryButtonPressed()
